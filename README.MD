@@ -1,0 +1,1 @@
+semgrep plugin for static analysis
