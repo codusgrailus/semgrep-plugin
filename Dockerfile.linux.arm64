@@ -1,0 +1,30 @@
+
+
+FROM rust:alpine AS builder
+
+ARG APP_DIR=.
+
+WORKDIR /app
+
+RUN apk add --no-cache build-base musl-dev
+
+COPY ${APP_DIR} ./
+
+RUN rustup target add aarch64-unknown-linux-musl
+RUN cargo build --release --target aarch64-unknown-linux-musl
+
+# ---- Runtime (Alpine + semgrep) ----
+FROM alpine:latest
+
+ARG BIN_NAME=semgrep_plugin
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN apk add --no-cache python3 py3-pip py3-virtualenv ca-certificates \
+  && python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+  && /opt/venv/bin/pip install --no-cache-dir semgrep
+
+COPY --from=builder /app/target/aarch64-unknown-linux-musl/release/${BIN_NAME} /usr/local/bin/app
+
+ENTRYPOINT ["/usr/local/bin/app"]
